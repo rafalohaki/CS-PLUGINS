@@ -2,7 +2,6 @@ import com.lagradost.cloudstream3.gradle.CloudstreamExtension
 import com.android.build.gradle.BaseExtension
 import org.gradle.api.tasks.Delete
 import org.gradle.kotlin.dsl.kotlin
-import org.gradle.api.tasks.testing.logging.TestLogEvent
 
 buildscript {
     repositories {
@@ -18,7 +17,6 @@ buildscript {
     }
 }
 
-// Configure repositories for all projects including root
 allprojects {
     repositories {
         google()
@@ -49,11 +47,6 @@ subprojects {
             targetSdk = 33
         }
 
-        // Enable build caching
-        buildFeatures {
-            buildConfig = false // Disable if not needed
-        }
-
         // Optimize dex options
         dexOptions {
             preDexLibraries = !System.getenv("CI").toBoolean()
@@ -73,7 +66,6 @@ subprojects {
             isCoreLibraryDesugaringEnabled = true
         }
 
-        // Optimize compile tasks
         tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
             kotlinOptions {
                 jvmTarget = "1.8"
@@ -83,18 +75,6 @@ subprojects {
                         "-Xno-receiver-assertions" +
                         "-Xopt-in=kotlin.RequiresOptIn" +
                         "-Xskip-prerelease-check"
-            }
-        }
-
-        // Configure test options
-        testOptions {
-            unitTests.all {
-                it.apply {
-                    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
-                    testLogging {
-                        events = setOf(TestLogEvent.FAILED)
-                    }
-                }
             }
         }
     }
@@ -129,20 +109,13 @@ subprojects {
             options.isIncremental = true
         }
 
-        withType<Test> {
-            maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
+        // Disable unnecessary tasks in CI
+        if (System.getenv("CI").toBoolean()) {
+            matching { it.name.contains("lint") }.configureEach { enabled = false }
         }
     }
 }
 
-tasks {
-    register("clean", Delete::class) {
-        delete(rootProject.buildDir)
-    }
-
-    // Disable unnecessary tasks in CI
-    if (System.getenv("CI").toBoolean()) {
-        matching { it.name.contains("lint") }.configureEach { enabled = false }
-        matching { it.name.contains("test") }.configureEach { enabled = false }
-    }
+tasks.register("clean", Delete::class) {
+    delete(rootProject.buildDir)
 }
